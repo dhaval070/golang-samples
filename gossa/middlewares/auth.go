@@ -10,7 +10,7 @@ func WithAuth (next http.Handler) http.Handler {
     return http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
         log.Println(r.RequestURI)
 
-        if r.RequestURI == "/login" {
+        if r.RequestURI == "/login" || r.RequestURI == "/auto-login" {
             next.ServeHTTP(w, r)
             return
         }

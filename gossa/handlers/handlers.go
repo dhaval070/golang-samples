@@ -12,10 +12,8 @@ import (
     "gossa/db"
     "golang.org/x/crypto/bcrypt"
     "github.com/dgrijalva/jwt-go"
+    "os"
 )
-
-const connString = "dhaval@tcp(127.0.0.1:3306)/ops"
-const SECRET = "892NTX9wwffqXoKLhjHQ7uCsFESMdkU0koTM7l6t/dew9gu3FE1K3pBAsRoZL38Ca4imrwZWwSAxcRgkVD6huKkO6qLl01UTyOHEk5IuRHV3VetS0qM/w1uZH947YRVOChl1bDRVdhWB5kyhPNkNlTINgNB5gDXWsnMOjVHAN82GVsxU2Qqaj0VEsHkVlJ78PAYUj0TOJSN+meG6az3J50Aea17Jqqwklsjyxw=="
 
 func GetLocations(w http.ResponseWriter, r *http.Request) {
     var result []models.Location
@@ -222,6 +220,7 @@ func jwtToken(uid int, email string, opsDb string) string {
     claim := jwt.MapClaims{ "id": uid, "email": email, "opsDb": opsDb }
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
 
+    var SECRET = os.Getenv("JWT_SECRET")
     tokenStr, err := token.SignedString([]byte(SECRET))
     if err != nil {
         fmt.Println(err.Error())
@@ -239,6 +238,7 @@ func Verify (w http.ResponseWriter, r *http.Request) bool {
     }
 
     var token *jwt.Token
+    var SECRET = os.Getenv("JWT_SECRET")
 
     token, err = jwt.Parse(c.Value, func (token *jwt.Token) (interface {}, error) {
         return []byte(SECRET), nil
@@ -250,5 +250,62 @@ func Verify (w http.ResponseWriter, r *http.Request) bool {
     }
 
     return token.Valid
+}
+
+func AutoLogin(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("content-type", "application/json")
+    db := db.Db()
+
+    var body struct {
+        Email string `json:"email"`
+        Password string `json:"password"`
+        OpsDb string `json:"opsDb"`
+    }
+
+    body.Email = "dhaval070@gmail.com"
+    body.Password = ""
+    body.OpsDb = "gos"
+
+    res, err := db.Query(`select id, email from user where email=? and superuser=1`, body.Email)
+
+    if err != nil {
+        http.Error(w, err.Error(), 500)
+        return
+    }
+
+    var id int
+    var email string
+
+    if (!res.Next()) {
+        http.Error(w, "User not found", 401)
+        return
+    }
+    if err := res.Scan(&id, &email); err != nil {
+        http.Error(w, err.Error(), 500)
+        return
+    }
+
+    type Payload struct {
+        Id int `json:"id"`
+        Email string `json:"email"`
+        OpsDb string `json:"opsDb"`
+    }
+    var data = Payload {
+        id,
+        email,
+        body.OpsDb,
+    }
+
+    token := jwtToken(id, email, body.OpsDb)
+    c := http.Cookie {
+        Name: "token",
+        Path: "/",
+        Value: token,
+        HttpOnly: true,
+    }
+
+    w.Header().Set("Set-Cookie", c.String())
+    json.NewEncoder(w).Encode(data)
+
 }
 

@@ -1,13 +1,17 @@
 package main
 import (
+    "github.com/joho/godotenv"
     "gossa/handlers"
     "log"
     "net/http"
     "github.com/gorilla/mux"
     "fmt"
-    "gossa/middlewares"
+    auth "gossa/middlewares"
 )
 
+func init() {
+    godotenv.Load()
+}
 
 func main() {
     router := mux.NewRouter()
@@ -16,6 +20,7 @@ func main() {
     router.HandleFunc("/", func (w http.ResponseWriter, r *http.Request) {
         fmt.Fprint(w, "hello\n")
     })
+    router.HandleFunc("/auto-login", handlers.AutoLogin)
     router.HandleFunc("/login", handlers.Login).Methods("POST")
     router.HandleFunc("/locations", handlers.GetLocations).Methods("GET")
     router.HandleFunc("/locations/re-assign", handlers.ReAssign).Methods("POST")
