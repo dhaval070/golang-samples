@@ -18,7 +18,8 @@ import (
 func GetLocations(w http.ResponseWriter, r *http.Request) {
     var result []models.Location
 
-    db := db.Db()
+    props := r.Context().Value("props").(jwt.MapClaims)
+    db := db.Db(props["opsDb"].(string))
 
     res, err := db.Query(`select id, location, status, copy_method, ifnull(locked_by_league,'') locked_by_league,
         ifnull(locked_by_event_id, 0) locked_by_event_id, use_rclone from location order by location`)
@@ -42,7 +43,8 @@ func GetLocations(w http.ResponseWriter, r *http.Request) {
 }
 
 func ReAssign(w http.ResponseWriter, r *http.Request) {
-    db := db.Db()
+    props := r.Context().Value("props").(jwt.MapClaims)
+    db := db.Db(props["opsDb"].(string))
 
     buf, err := io.ReadAll(r.Body)
     if err != nil {
@@ -75,7 +77,8 @@ func ReAssign(w http.ResponseWriter, r *http.Request) {
 }
 
 func EditLocation(w http.ResponseWriter, r *http.Request) {
-    db := db.Db()
+    props := r.Context().Value("props").(jwt.MapClaims)
+    db := db.Db(props["opsDb"].(string))
 
     vars := mux.Vars(r)
     id, _ := strconv.Atoi(vars["id"])
@@ -143,7 +146,6 @@ func EditLocation(w http.ResponseWriter, r *http.Request) {
 
 func Login(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("content-type", "application/json")
-    db := db.Db()
 
     var body struct {
         Email string `json:"email"`
@@ -167,6 +169,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
     //body.Password = ""
     //body.OpsDb = "gos"
 
+    db := db.Db(body.OpsDb)
     res, err := db.Query(`select id, email, password from user where email=? and superuser=1`, body.Email)
 
     if err != nil {
@@ -229,12 +232,11 @@ func jwtToken(uid int, email string, opsDb string) string {
     return tokenStr
 }
 
-func Verify (w http.ResponseWriter, r *http.Request) bool {
+func Verify (w http.ResponseWriter, r *http.Request) (*jwt.Token, error) {
     c, err := r.Cookie("token")
 
     if err != nil {
-        http.Error(w, err.Error(), 401)
-        return false
+        return nil, err
     }
 
     var token *jwt.Token
@@ -245,16 +247,14 @@ func Verify (w http.ResponseWriter, r *http.Request) bool {
     })
 
     if err != nil {
-        http.Error(w, err.Error(), 500)
-        return false
+        return nil, err
     }
 
-    return token.Valid
+    return token, nil
 }
 
 func AutoLogin(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("content-type", "application/json")
-    db := db.Db()
 
     var body struct {
         Email string `json:"email"`
@@ -264,8 +264,9 @@ func AutoLogin(w http.ResponseWriter, r *http.Request) {
 
     body.Email = "dhaval070@gmail.com"
     body.Password = ""
-    body.OpsDb = "gos"
+    body.OpsDb = "goslive"
 
+    db := db.Db(body.OpsDb)
     res, err := db.Query(`select id, email from user where email=? and superuser=1`, body.Email)
 
     if err != nil {

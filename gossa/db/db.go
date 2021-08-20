@@ -1,24 +1,33 @@
 package db
 import (
+    "log"
+    "fmt"
     "os"
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
 )
 
-var db *sql.DB
+var dbs map[string]*sql.DB
 
-func Db() *sql.DB {
-    if db != nil {
-        return db
+func init() {
+    dbs =  make(map[string]*sql.DB)
+}
+
+func Db(conn string) *sql.DB {
+
+    if dbs[conn] != nil {
+        return dbs[conn]
     }
-    var connString = os.Getenv("DB_CONN")
+    var connString = os.Getenv(fmt.Sprintf("DB_%s", conn))
 
-    var err error
+    log.Println("connecting " + connString)
 
-    db, err = sql.Open("mysql", connString)
+    db, err := sql.Open("mysql", connString)
+
     if err != nil {
         panic(err)
     }
+    dbs[conn] = db
     return db
 }
 

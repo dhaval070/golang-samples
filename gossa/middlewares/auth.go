@@ -1,7 +1,7 @@
 package auth;
 import (
+    "context"
     "net/http"
-    "fmt"
     "log"
     "gossa/handlers"
 )
@@ -15,12 +15,14 @@ func WithAuth (next http.Handler) http.Handler {
             return
         }
 
-        if handlers.Verify(w, r) {
-            fmt.Println("valid")
-            next.ServeHTTP(w, r)
-        } else {
-            fmt.Println("Invalid")
+        token, err := handlers.Verify(w, r)
+        if err != nil {
+            http.Error(w, err.Error(), 401)
+            return
         }
+
+        ctx := context.WithValue(r.Context(), "props", token.Claims)
+        next.ServeHTTP(w, r.WithContext(ctx))
     })
 }
 
