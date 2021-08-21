@@ -8,6 +8,7 @@ import (
 
 func WithAuth (next http.Handler) http.Handler {
     return http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("content-type", "application/json")
         log.Println(r.RequestURI)
 
         if r.RequestURI == "/login" || r.RequestURI == "/auto-login" {

@@ -16,7 +16,6 @@ import (
 )
 
 func GetLocations(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("content-type", "application/json")
     var result []models.Location
 
     props := r.Context().Value("props").(jwt.MapClaims)
@@ -48,7 +47,6 @@ func GetLocations(w http.ResponseWriter, r *http.Request) {
 }
 
 func LocLeagues(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("content-type", "application/json")
 
     props := r.Context().Value("props").(jwt.MapClaims)
     db := db.Db(props["opsDb"].(string))
@@ -143,8 +141,6 @@ func EditLocation(w http.ResponseWriter, r *http.Request) {
     id, _ := strconv.Atoi(vars["id"])
     var loc models.Location
 
-    w.Header().Set("content-type", "application/json")
-
     if r.Method == "GET" {
         res, err := db.Query(`select id, location, status, copy_method,
         ifnull(locked_by_league,'') locked_by_league, ifnull(locked_by_event_id, 0) locked_by_event_id,
@@ -204,8 +200,6 @@ func EditLocation(w http.ResponseWriter, r *http.Request) {
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("content-type", "application/json")
-
     var body struct {
         Email string `json:"email"`
         Password string `json:"password"`
@@ -313,8 +307,6 @@ func Verify (w http.ResponseWriter, r *http.Request) (*jwt.Token, error) {
 }
 
 func AutoLogin(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("content-type", "application/json")
-
     var body struct {
         Email string `json:"email"`
         Password string `json:"password"`
