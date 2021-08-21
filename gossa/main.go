@@ -23,6 +23,7 @@ func main() {
     router.HandleFunc("/auto-login", handlers.AutoLogin)
     router.HandleFunc("/login", handlers.Login).Methods("POST")
     router.HandleFunc("/locations", handlers.GetLocations).Methods("GET")
+    router.HandleFunc("/locations/leagues/{id}", handlers.LocLeagues).Methods("GET")
     router.HandleFunc("/locations/re-assign", handlers.ReAssign).Methods("POST")
     //id = 0 to insert record
     router.HandleFunc("/locations/{id}", handlers.EditLocation).Methods("GET", "POST")

@@ -1,12 +1,12 @@
 package handlers
 import (
+    "strings"
     "log"
     "fmt"
     "gossa/models"
     "encoding/json"
     "net/http"
     "io"
-    "strings"
     "github.com/gorilla/mux"
     "strconv"
     "gossa/db"
@@ -16,6 +16,7 @@ import (
 )
 
 func GetLocations(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("content-type", "application/json")
     var result []models.Location
 
     props := r.Context().Value("props").(jwt.MapClaims)
@@ -39,7 +40,65 @@ func GetLocations(w http.ResponseWriter, r *http.Request) {
 
         result = append(result, loc)
     }
-    json.NewEncoder(w).Encode(result)
+    var output struct {
+        Result []models.Location `json:"result"`
+    }
+    output.Result = result
+    json.NewEncoder(w).Encode(output)
+}
+
+func LocLeagues(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("content-type", "application/json")
+
+    props := r.Context().Value("props").(jwt.MapClaims)
+    db := db.Db(props["opsDb"].(string))
+
+    res, err := db.Query("show databases")
+
+    if (err != nil) {
+        http.Error(w, err.Error(), 500)
+    }
+
+    vars := mux.Vars(r)
+    id, err := strconv.Atoi(vars["id"])
+
+    if err != nil {
+        http.Error(w, err.Error(), 500)
+        return
+    }
+
+    var leagues []string
+
+    for res.Next() {
+        var dbname string
+
+        if err := res.Scan(&dbname); err != nil {
+            http.Error(w, err.Error(), 500)
+            return
+        }
+
+        if strings.Index(dbname, "gos_") == 0 {
+            log.Println(dbname)
+            res, err := db.Query(fmt.Sprintf("select id from %s.location where global_id=?", dbname),
+                id)
+
+            if err != nil {
+                http.Error(w, err.Error(), 500)
+                return
+            }
+
+            if (res.Next()) {
+                leagues = append(leagues, strings.TrimPrefix(dbname, "gos_"))
+            }
+        }
+    }
+
+    log.Println(leagues)
+    if len(leagues) == 0 {
+        fmt.Fprint(w, "[]")
+    } else {
+        json.NewEncoder(w).Encode(leagues)
+    }
 }
 
 func ReAssign(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +219,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
     }
 
     if err = json.Unmarshal(buf, &body); err != nil {
-        log.Println("err in body parse")
+        log.Printf("err in body parse %v\n", err)
         http.Error(w, err.Error(), 500)
         return
     }
