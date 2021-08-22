@@ -1,5 +1,6 @@
 package handlers
 import (
+_    "context"
     "strings"
     "log"
     "fmt"
@@ -19,11 +20,13 @@ func GetLocations(w http.ResponseWriter, r *http.Request) {
     var result []models.Location
 
     props := r.Context().Value("props").(jwt.MapClaims)
+
     db := db.Db(props["opsDb"].(string))
 
     res, err := db.Query(`select id, location, status, copy_method, ifnull(locked_by_league,'') locked_by_league,
         ifnull(locked_by_event_id, 0) locked_by_event_id, use_rclone from location order by location`)
 
+    defer res.Close()
     if err != nil {
         http.Error(w, err.Error(), 500)
     }
@@ -47,11 +50,11 @@ func GetLocations(w http.ResponseWriter, r *http.Request) {
 }
 
 func LocLeagues(w http.ResponseWriter, r *http.Request) {
-
     props := r.Context().Value("props").(jwt.MapClaims)
     db := db.Db(props["opsDb"].(string))
 
     res, err := db.Query("show databases")
+    defer res.Close()
 
     if (err != nil) {
         http.Error(w, err.Error(), 500)
@@ -77,7 +80,7 @@ func LocLeagues(w http.ResponseWriter, r *http.Request) {
 
         if strings.Index(dbname, "gos_") == 0 {
             log.Println(dbname)
-            res, err := db.Query(fmt.Sprintf("select id from %s.location where global_id=?", dbname),
+            resL, err := db.Query(fmt.Sprintf("select id from %s.location where global_id=?", dbname),
                 id)
 
             if err != nil {
@@ -85,9 +88,10 @@ func LocLeagues(w http.ResponseWriter, r *http.Request) {
                 return
             }
 
-            if (res.Next()) {
+            if (resL.Next()) {
                 leagues = append(leagues, strings.TrimPrefix(dbname, "gos_"))
             }
+            resL.Close()
         }
     }
 
@@ -124,6 +128,7 @@ func ReAssign(w http.ResponseWriter, r *http.Request) {
         var s strings.Builder
         fmt.Fprintf(&s, `update gos_%s.location set global_id=? where global_id=?`, l)
         res, err := db.Query(s.String(), body.NewId, body.Id)
+        defer res.Close()
 
         if err != nil {
             http.Error(w, err.Error(), 500)
@@ -146,6 +151,7 @@ func EditLocation(w http.ResponseWriter, r *http.Request) {
         ifnull(locked_by_league,'') locked_by_league, ifnull(locked_by_event_id, 0) locked_by_event_id,
         use_rclone from location where id = ?`, id)
 
+        defer res.Close()
         if err != nil {
             http.Error(w, err.Error(), 500)
             return
@@ -224,6 +230,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
     db := db.Db(body.OpsDb)
     res, err := db.Query(`select id, email, password from user where email=? and superuser=1`, body.Email)
+    defer res.Close()
 
     if err != nil {
         http.Error(w, err.Error(), 500)
@@ -319,6 +326,7 @@ func AutoLogin(w http.ResponseWriter, r *http.Request) {
 
     db := db.Db(body.OpsDb)
     res, err := db.Query(`select id, email from user where email=? and superuser=1`, body.Email)
+    defer res.Close()
 
     if err != nil {
         http.Error(w, err.Error(), 500)

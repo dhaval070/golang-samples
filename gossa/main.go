@@ -1,5 +1,6 @@
 package main
 import (
+    "os"
     "github.com/joho/godotenv"
     "gossa/handlers"
     "log"
@@ -29,6 +30,6 @@ func main() {
     router.HandleFunc("/locations/{id}", handlers.EditLocation).Methods("GET", "POST")
 
     fmt.Println("starting api")
-    log.Fatal(http.ListenAndServe(":5000", router))
+    log.Fatal(http.ListenAndServe(":" + os.Getenv("PORT"), router))
 }
 
